@@ -1,0 +1,102 @@
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+		<script src="http://code.highcharts.com/highcharts.js"></script>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
+	</head>
+	<body style="margin: 40px;">
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-sm-6 text-center">
+					<div class="well">
+					<h1><span id="curTemp">-</span> &deg;C</h1>
+					<p>Last 10 min</p>
+					</div>
+				</div>
+				<div class="col-sm-6 text-center">
+					<div class="well">
+					<h1><span id="curPower">-</span> kW</h1>
+					<p>Last hour</p>
+					</div>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-md-12">
+					<h2>Temperature (48 hours)</h1>
+					<div id="temperature" style="width: 100%; height: 300px;"></div>
+					<h2>Power Consumption (48 hours)</h1>
+					<div id="power" style="width: 100%; height: 300px;"></div>
+				</div>
+			</div>
+		</div>
+	</body>
+	<script>
+	var options = {
+		series: {
+			animation: false,
+		},
+		area: {
+			marker: {
+				enabled: false,
+			},
+			enableMouseTracking: false,
+			showInLegend: false,
+		},
+		line: {
+			marker: {
+				enabled: false,
+			},
+			enableMouseTracking: false,
+			showInLegend: false,
+		},
+	};
+	$(function () {
+		Highcharts.setOptions({global: {useUTC: false}});
+		$.getJSON("/stats/temperature?hours=48&stepm=10", function (data) {
+			$("#curTemp").html(data[data.length-1].degc.toFixed(1));
+			var tempitems = [];
+			for (var i = 0; i < data.length; i++) {
+				tempitems.push([+(new Date(data[i].timestamp)), data[i].degc]);
+			}
+			$('#temperature').highcharts({
+				chart: { type: 'line', marginLeft: 70, marginRight: 20, backgroundColor: "#FAFAFA", spacing: [20, 20, 20, 20] },
+				plotOptions: options,
+				title: { text: null },
+				xAxis: { type: 'datetime' },
+				yAxis: { title: { text: '°C' } },
+				series: [{ name: 'Temperature', data: tempitems }],
+			});
+
+			$.getJSON("/stats/power?hours=48", function (data) {
+				$("#curPower").html((data[data.length-1].wh / 1000).toFixed(1));
+				var items = [];
+				// Fake a previous data point to get a straight bar for the first hour
+				items.push([+(new Date(data[0].timestamp)) - 3600*1000, data[0].wh]);
+				for (var i = 0; i < data.length; i++) {
+					items.push([+(new Date(data[i].timestamp)), data[i].wh]);
+				}
+				$('#power').highcharts({
+					chart: { type: 'area', marginLeft: 70, marginRight: 20, backgroundColor: "#FAFAFA", spacing: [20, 20, 20, 20]  },
+					plotOptions: options,
+					title: { text: null },
+					xAxis: {
+						type: 'datetime',
+						min: tempitems[0][0],
+						max: tempitems[tempitems.length-1][0],
+					},
+					yAxis: {
+						title: { text: 'wH' },
+						min: 0,
+					},
+					series: [{
+						name: 'Power',
+						data: items,
+						step: 'right',
+					}],
+				});
+			});
+    	});
+	});
+	</script>
+</html>
